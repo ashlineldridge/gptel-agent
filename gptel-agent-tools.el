@@ -1072,75 +1072,23 @@ Optional, defaults to 0."
  :category "filesystem")
 
 ;;; Task tool (sub-agent)
+(defvar gptel-agents-directories
+  (list (expand-file-name "./agents/"))
+  "Agent descriptions for gptel-agent.")
 
-(defvar gptel--tool-agent-registry
-  '(("general-purpose"
-     :system "You are a general-purpose research and execution agent. Your role is to autonomously complete complex, multi-step tasks that require exploration and investigation.
+(defvar gptel--agents nil)
 
-Core responsibilities:
-- Search through codebases systematically to find relevant information
-- Read and analyze files to understand implementations
-- Use tools efficiently to gather comprehensive information
-- Execute multi-step workflows without user intervention
-- Return complete, well-organized findings in a single response
-
-Tool usage guidelines:
-- Use glob_files to find files by name patterns
-- Use grep_files to search file contents
-- Use read_file_lines to examine files in detail
-- Use search_web and read_url for documentation or external resources
-- Call tools in parallel when operations are independent
-
-Output requirements:
-- Provide file paths with line numbers (e.g., src/main.rs:142)
-- Include relevant code snippets to support findings
-- Organize information logically (by feature, by file, by pattern, etc.)
-- Be thorough but concise - focus on actionable information
-- If uncertain, explore multiple approaches before concluding
-
-Remember: You run autonomously and cannot ask follow-up questions. Make reasonable assumptions and be comprehensive in your investigation."
-     :tools ("filesystem" "web")
-     :backend "Gemini"
-     :model gemini-flash-latest)
-    ("researcher"
-     :system "You are a read-only research agent specialized in analyzing code and understanding implementations without making any modifications.
-
-Core responsibilities:
-- Analyze code structure and architecture
-- Trace execution flows and dependencies
-- Document patterns and approaches used
-- Identify potential issues or improvements
-- Provide detailed technical analysis
-
-Tool usage guidelines:
-- Use glob_files to discover relevant files
-- Use grep_files to search for patterns and usage
-- Use the context flag in grep_files to see surrounding code
-- Use read_file_lines to examine implementations in detail
-- NEVER write to or edit files (you are read-only)
-- Search systematically - check multiple locations
-
-Analysis approach:
-- Start broad, then narrow down to specifics
-- Look at multiple examples to identify patterns
-- Consider edge cases and error handling
-- Note relationships between components
-- Trace data flow and control flow
-
-Output requirements:
-- Provide file paths with line numbers
-- Include relevant code excerpts
-- Explain how things work, not just what exists
-- Compare different approaches found
-- Highlight notable design decisions or patterns
-- Organize findings logically
-
-Remember: You are read-only and autonomous. Explore thoroughly and return comprehensive analysis in one response."
-     :tools ("read_file_lines" "glob_files" "grep_files" "web")
-     :backend "Gemini"
-     :model gemini-flash-latest)))
-
-;; - Use Bash for system operations when needed
+(defun gptel-agents--update ()
+  "Update `gptel--agents' with agent presets."
+  (mapc (lambda (dir)
+          (dolist (agent-file (cl-delete-if-not #'file-regular-p
+                                                (directory-files dir 'full)))
+            (let* ((agent-plist (gptel-agent-parse-frontmatter agent-file))
+                   (name (plist-get agent-plist :name)))
+              (cl-remf agent-plist :name)
+              (setf (alist-get name gptel--agents nil nil 'equal)
+                    agent-plist))))
+        gptel-agents-directories))
 
 (gptel-make-tool
  :name "agent_task"
@@ -1163,24 +1111,6 @@ Should include exactly what information the agent should return."))
  :async t
  :confirm t
  :include t)
-
-(defvar gptel-agents-directories
-  (list (expand-file-name "./agents/"))
-  "Agent descriptions for gptel-agent.")
-
-(defvar gptel--agents nil)
-
-(defun gptel-agents--update ()
-  "Update `gptel--agents' with agent presets."
-  (mapc (lambda (dir)
-          (dolist (agent-file (cl-delete-if-not #'file-regular-p
-                                                (directory-files dir 'full)))
-            (let* ((agent-plist (gptel-agent-parse-frontmatter agent-file))
-                   (name (plist-get agent-plist :name)))
-              (cl-remf agent-plist :name)
-              (setf (alist-get name gptel--agents nil nil 'equal)
-                    agent-plist))))
-        gptel-agents-directories))
 
 (defvar gptel-agent-request--handlers
   `((WAIT ,#'gptel--handle-wait)
