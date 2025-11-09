@@ -982,9 +982,57 @@ returned as a string.  Long outputs should be filtered/limited using pipes."
            :description "The Bash command to execute.  \
 Can include pipes and standard shell operators.
 Example: 'ls -la | head -20' or 'grep -i error app.log | tail -50'"))
+ :category "gptel-agent"
  :confirm t
- :include t
- :category "gptel-agent")
+ :include t)
+
+(gptel-make-tool
+ :name "eval_elisp"
+ :function
+ (lambda (expression)
+   (let ((standard-output (generate-new-buffer " *gptel-agent-eval-elisp*"))
+         (result nil) (output nil))
+     (unwind-protect
+         (condition-case err
+             (progn
+               (setq result (eval (read expression) t))
+               (when (> (buffer-size standard-output) 0)
+                 (setq output (with-current-buffer standard-output (buffer-string))))
+               (concat
+                (format "Result:\n%S" result)
+                (and output (format "\n\nSTDOUT:\n%s" output))))
+           ((error user-error)
+            (concat
+             (format "Error: eval failed with error %S: %S"
+                     (car err) (cdr err))
+             (and output (format "\n\nSTDOUT:\n%s" output)))))
+       (kill-buffer standard-output))))
+ :description "Evaluate Elisp EXPRESSION and return result and any message output.
+
+EXPRESSION can be anything to evaluate.  It can be a function call, a
+variable, a quasi-quoted expression.  The only requirement is that only
+the first sexp will be read and evaluated, so if you need to evaluate
+multiple expressions, make one call per expression.  Do not combine
+expressions using progn etc.  Just go expression by expression and try
+to make standalone single expressions.
+
+Instead of saying \"I can't calculate that\" etc, use this tool to
+evaluate the result.
+
+The return value is formated to a string using %S, so a string will be
+returned as an escaped embedded string and literal forms will be
+compatible with `read' where possible.  Some forms have no printed
+representation that can be read and will be represented with
+#<hash-notation> instead.
+
+You can use this to quickly change a user setting, check a variable, or
+demonstrate something to the user."
+ :args '(( :name "expression"
+           :type string
+           :description "A single elisp sexp to evaluate."))
+ :category "gptel-agent"
+ :confirm t
+ :include t)
 
 (gptel-make-tool
  :name "search_web"
@@ -1059,7 +1107,8 @@ across all open buffers in the current project."
                 :type "string"
                 :description "The name of the new directory to create, e.g. testdir"))
  :category "gptel-agent"
- :confirm t)
+ :confirm t
+ :include t)
 
 (gptel-make-tool
  :name "edit_files"
@@ -1199,7 +1248,8 @@ Use \"*\" to list all files in a directory.")
            :description "Limit directory depth of search, 1 or higher. Defaults to no limit."
            :type integer
            :optional t))
- :category "gptel-agent")
+ :category "gptel-agent"
+ :include t)
 
 (gptel-make-tool
  :name "read_file_lines"
@@ -1256,7 +1306,8 @@ Optional, defaults to 0."
            :optional t
            :type integer
            :maximum 15))
- :category "gptel-agent")
+ :category "gptel-agent"
+ :include t)
 
 (gptel-make-tool
  :name "write_todo"
