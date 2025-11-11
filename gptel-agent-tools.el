@@ -22,27 +22,21 @@
 
 ;; Adds the following gptel tools.
 ;; System:
-;; - "execute_bash"           : Execute a Bash command.
+;; - "Bash"           : Execute a Bash command.
 ;;
 ;; Web:
-;; - "search_web"             : Search the web for the first five results to a query.
-;; - "read_url"               : Fetch and read the contents of a URL.
-;; - "read_youtube_url"       : Find the description and video transcript for a youtube video.
-;;
-;; Emacs:                       Currently WIP
-;; - "append_to_buffer"       : Append text to an Emacs buffer.
-;; - "open_file_or_dir"       : Open a file or directory in Emacs.
-;; - "read_buffer"            : Return the contents of an Emacs buffer.
-;; - "modify_buffer"          : Modify buffer contents using unified diff format.
+;; - "WebSearch"             : Search the web for the first five results to a query.
+;; - "Read"               : Fetch and read the contents of a URL.
+;; - "YouTube"       : Find the description and video transcript for a youtube video.
 ;;
 ;; Filesystem:
-;; - "make_directory"  : Create a new directory.
-;; - "glob_files"      : Find files matching a glob pattern
-;; - "grep_files"      : Grep for text in file(s).
-;; - "read_file_lines" : Read a specific line range from a file.
-;; - "insert_in_file"  : Insert text at a specific line number in a file.
-;; - "edit_files"      : Replace text in file(s) using string match or unified diff.
-;; - "write_file"      : Create a new file with content.
+;; - "Mkdir"  : Create a new directory.
+;; - "Glob"      : Find files matching a glob pattern
+;; - "Grep"      : Grep for text in file(s).
+;; - "Read" : Read a specific line range from a file.
+;; - "Insert"  : Insert text at a specific line number in a file.
+;; - "Edit"      : Replace text in file(s) using string match or unified diff.
+;; - "Write"      : Create a new file with content.
 
 ;;; Code:
 
@@ -191,7 +185,7 @@ properties persist through refontification."
   (let ((expr (car arg-values))
         (from (point)) (inner-from))
     (insert
-     "(" (propertize "eval_elisp" 'font-lock-face 'font-lock-keyword-face)
+     "(" (propertize "Eval" 'font-lock-face 'font-lock-keyword-face)
      ")\n")
     (setq inner-from (point))
     (insert expr)
@@ -206,7 +200,7 @@ properties persist through refontification."
   (let ((command (car arg-values))
         (from (point)) (inner-from))
     (insert
-     "(" (propertize "execute_bash" 'font-lock-face 'font-lock-keyword-face)
+     "(" (propertize "Bash" 'font-lock-face 'font-lock-keyword-face)
      ")\n")
     (setq inner-from (point))
     (insert command)
@@ -552,7 +546,7 @@ Errors with low severity are not collected."
 ;;;; Make directories
 ;;;; Writing to files
 (defun gptel-agent--edit-files-preview-setup (arg-values _info)
-  "Insert tool call preview for ARG-VALUES for \"edit_files\" tool."
+  "Insert tool call preview for ARG-VALUES for \"Edit\" tool."
   (pcase-let ((from (point)) (files-affected) (description)
               (`(,path ,old-str ,new-str-or-diff ,diffp) arg-values))
 
@@ -568,12 +562,11 @@ Errors with low severity are not collected."
           (skip-chars-backward " \t\r\n") (forward-line 0)
           (when (looking-at-p "^ *```\\s-*\\'")
             (delete-region (line-beginning-position) (line-end-position)))
-          (setq description (if (> (length files-affected) 1)
-                                "patch_files" "patch_file"))
+          (setq description "Patch")
           (gptel-agent--fontify-block 'diff-mode from (point)))
       (when old-str                     ;Text replacement
         (push path files-affected)
-        (setq description "replace_text")
+        (setq description "ReplaceIn")
         (insert
          (propertize old-str 'font-lock-face 'diff-removed
                      'line-prefix (propertize "-" 'face 'diff-removed))
@@ -752,7 +745,7 @@ Patch STDOUT:\n%s"
           (when (buffer-live-p stdout-buf-obj) (kill-buffer stdout-buf-obj)))))))
 
 (defun gptel-agent--insert-in-file-preview-setup (arg-values _info)
-  "Preview setup for insert_in_file.
+  "Preview setup for Insert.
 INFO is the tool call info plist.
 ARG-VALUES is a list: (path line-number new-str)"
   (let ((from (point)) (line-offset)
@@ -831,7 +824,7 @@ LINE-NUMBER conventions:
   (pcase-let ((from (point))
               (`(,path ,filename ,content) arg-values))
     (insert
-     "(" (propertize "write_file " 'font-lock-face 'font-lock-keyword-face)
+     "(" (propertize "Write " 'font-lock-face 'font-lock-keyword-face)
      (propertize (prin1-to-string path) 'font-lock-face 'font-lock-constant-face) " "
      (propertize (prin1-to-string filename) 'font-lock-face 'font-lock-constant-face)
      ")\n")
@@ -1043,13 +1036,13 @@ Exactly one item should have status \"in_progress\"."
   "See `gptel-request--handlers'.")
 
 (defun gptel-agent--task-preview-setup (arg-values _info)
-  "Preview setup for agent_task.
+  "Preview setup for Agent.
 INFO is the tool call info plist.
 ARG-VALUES is a list: (type description prompt)"
   (pcase-let ((from (point))
               (`(,type ,desc ,prompt) arg-values))
     (insert "("
-            (propertize "agent " 'font-lock-face 'font-lock-keyword-face)
+            (propertize "Agent " 'font-lock-face 'font-lock-keyword-face)
             (propertize (prin1-to-string type)
                         'font-lock-face 'font-lock-escape-face)
             " " (propertize (prin1-to-string desc)
@@ -1184,12 +1177,12 @@ Error details: %S"
 ;;; Register tool call preview functions
 
 (pcase-dolist (`(,tool-name . ,setup-fn)
-               `(("write_file"     ,#'gptel-agent--write-file-preview-setup)
-                 ("eval_elisp"     ,#'gptel-agent--eval-elisp-preview-setup)
-                 ("execute_bash"   ,#'gptel-agent--execute-bash-preview-setup)
-                 ("edit_files"     ,#'gptel-agent--edit-files-preview-setup)
-                 ("insert_in_file" ,#'gptel-agent--insert-in-file-preview-setup)
-                 ("agent_task"     ,#'gptel-agent--task-preview-setup)))
+               `(("Write"     ,#'gptel-agent--write-file-preview-setup)
+                 ("Eval"     ,#'gptel-agent--eval-elisp-preview-setup)
+                 ("Bash"   ,#'gptel-agent--execute-bash-preview-setup)
+                 ("Edit"     ,#'gptel-agent--edit-files-preview-setup)
+                 ("Insert" ,#'gptel-agent--insert-in-file-preview-setup)
+                 ("Agent"     ,#'gptel-agent--task-preview-setup)))
   (setf (alist-get tool-name gptel--tool-preview-alist
                    nil nil #'equal)
         setup-fn))
@@ -1197,7 +1190,7 @@ Error details: %S"
 ;;; All tool declarations
 
 (gptel-make-tool
- :name "execute_bash"
+ :name "Bash"
  :function (lambda (command)
              "Execute a bash command and return its output.
 
@@ -1214,13 +1207,13 @@ This tool provides access to a Bash shell with GNU coreutils (or equivalents) av
 Use this to inspect system state, run builds, tests or other development or system administration tasks.
 
 Do NOT use this for file operations, finding, reading or editing files.
-Use the provided file tools instead: `read_file_lines`, `write_file`, `edit_files`, \
-`glob_files`, `grep_files`
+Use the provided file tools instead: `Read`, `Write`, `Edit`, \
+`Glob`, `Grep`
 
 - Quote file paths with spaces using double quotes.
 - Chain dependent commands with && (or ; if failures are OK)
 - Use absolute paths instead of cd when possible
-- For parallel commands, make multiple `execute_bash` calls in one message
+- For parallel commands, make multiple `Bash` calls in one message
 - Run tests, check your work or otherwise close the loop to verify changes you make.
 
 EXAMPLES:
@@ -1241,7 +1234,7 @@ Example: 'ls -la | head -20' or 'grep -i error app.log | tail -50'"))
  :include t)
 
 (gptel-make-tool
- :name "eval_elisp"
+ :name "Eval"
  :function
  (lambda (expression)
    (let ((standard-output (generate-new-buffer " *gptel-agent-eval-elisp*"))
@@ -1293,13 +1286,13 @@ demonstrate something to the user."
  :include t)
 
 (gptel-make-tool
- :name "search_web"
+ :name "WebSearch"
  :function 'gptel-agent--web-search-eww
  :description "Search the web for the first five results to a query.  The query can be an arbitrary string.  Returns the top five results from the search engine as a list of plists.  Each object has the keys `:url` and `:excerpt` for the corresponding search result.
 
 This tool uses the Emacs web browser (eww) with its default search engine (typically DuckDuckGo) to perform searches. No API key is required.
 
-If required, consider using the url as the input to the `read_url` tool to get the contents of the url.  Note that this might not work as the `read_url` tool does not handle javascript-enabled pages."
+If required, consider using the url as the input to the `Read` tool to get the contents of the url.  Note that this might not work as the `Read` tool does not handle javascript-enabled pages."
  :args '((:name "query"
                 :type string
                 :description "The natural language search query, can be multiple words.")
@@ -1313,7 +1306,7 @@ If required, consider using the url as the input to the `read_url` tool to get t
 
 (gptel-make-tool
  :function #'gptel-agent--read-url
- :name "read_url"
+ :name "WebFetch"
  :description "Fetch and read the contents of a URL.
 
 - Returns the text of the URL (not HTML) formatted for reading.
@@ -1326,7 +1319,7 @@ If required, consider using the url as the input to the `read_url` tool to get t
  :category "gptel-agent")
 
 (gptel-make-tool
- :name "read_youtube_url"
+ :name "YouTube"
  :function #'gptel-agent--yt-read-url
  :description "Find the description and video transcript for a youtube video.  Returns a markdown formatted string containing two sections:
 
@@ -1340,7 +1333,7 @@ If required, consider using the url as the input to the `read_url` tool to get t
  :include t)
 
 (gptel-make-tool
- :name "code_diagnostics"
+ :name "Diagnostics"
  :description "Collect all code diagnostics with severity high/medium \
 across all open buffers in the current project."
  :function #'gptel--tool-flymake-diagnostics
@@ -1350,7 +1343,7 @@ across all open buffers in the current project."
  :confirm t)
 
 (gptel-make-tool
- :name "make_directory"
+ :name "Mkdir"
  :description "Create a new directory with the given name in the specified parent directory"
  :function (lambda (parent name)
              (condition-case errdata
@@ -1369,7 +1362,7 @@ across all open buffers in the current project."
  :include t)
 
 (gptel-make-tool
- :name "edit_files"
+ :name "Edit"
  :description
  "Replace text in one or more files.
 
@@ -1394,7 +1387,7 @@ Diff instructions:
 - The LLM should generate the diff such that the file paths within the diff \
   (e.g., '--- a/filename' '+++ b/filename') are appropriate for the 'path'.
 
-To simply insert text at some line, use the \"insert_in_file\" instead."
+To simply insert text at some line, use the \"Insert\" instead."
  :function #'gptel-agent--edit-files
  :args '(( :name "path"
            :description "File path or directory to edit"
@@ -1414,7 +1407,7 @@ To simply insert text at some line, use the \"insert_in_file\" instead."
  :include t)
 
 (gptel-make-tool
- :name "insert_in_file"
+ :name "Insert"
  :description "Insert `new_str` after `line_number` in file at `path`.
 
 Use this tool for purely additive actions: adding text to a file at a \
@@ -1435,10 +1428,10 @@ specific location with no changes to the surrounding context."
  :include t)
 
 (gptel-make-tool
- :name "write_file"
+ :name "Write"
  :description "Create a new file with the specified content.
 Overwrites an existing file, so use with care!
-Consider using the more granular tools \"insert_in_file\" or \"edit_files\" first."
+Consider using the more granular tools \"Insert\" or \"Edit\" first."
  :function (lambda (path filename content)
              (unless (and (stringp path) (stringp filename) (stringp content))
                (error "PATH, FILENAME or CONTENT is not a string, cancelling action."))
@@ -1462,7 +1455,7 @@ Consider using the more granular tools \"insert_in_file\" or \"edit_files\" firs
  :confirm t)
 
 (gptel-make-tool
- :name "glob_files"
+ :name "Glob"
  :description "Recursively find files matching a provided glob pattern.
 
 - Supports glob patterns like \"*.md\" or \"*test*.py\".
@@ -1493,7 +1486,7 @@ Consider using the more granular tools \"insert_in_file\" or \"edit_files\" firs
                         (exit-code (apply #'call-process "tree" nil t nil args)))
                    (when (/= exit-code 0)
                      (goto-char (point-min))
-                     (insert (format "glob_files failed with exit code %d\n.STDOUT:\n\n"
+                     (insert (format "Glob failed with exit code %d\n.STDOUT:\n\n"
                                      exit-code))))
                  (buffer-string))))
  :args '(( :name "pattern"
@@ -1512,11 +1505,11 @@ Use \"*\" to list all files in a directory.")
  :include t)
 
 (gptel-make-tool
- :name "read_file_lines"
+ :name "Read"
  :description "Read file contents between specified line numbers `start_line` and `end_line`,
 with both ends included.
 
-Consider using the \"grep_files\" tool to find the right range to read first.
+Consider using the \"Grep\" tool to find the right range to read first.
 
 Reads the whole file if the line range is not provided.
 
@@ -1538,12 +1531,12 @@ Files over 512 KB in size can only be read by specifying a line range."
  :include t)
 
 (gptel-make-tool
- :name "grep_files"
+ :name "Grep"
  :description "Search for text in file(s) at `path`.
 
 Use this tool to find relevant parts of files to read.
 
-Returns a list of matches prefixed by the line number, and grouped by file.  Can search an individual file (if providing a file path) or a directory.  Consider using this tool to find the right line range for the \"read_file_lines\" tool.
+Returns a list of matches prefixed by the line number, and grouped by file.  Can search an individual file (if providing a file path) or a directory.  Consider using this tool to find the right line range for the \"Read\" tool.
 
 When searching directories, optionally restrict the types of files in the search with a `glob`.  Can request context lines around each match using the `context_lines` parameters."
  :function #'gptel-agent--grep
@@ -1569,7 +1562,7 @@ Optional, defaults to 0."
  :include t)
 
 (gptel-make-tool
- :name "write_todo"
+ :name "TodoWrite"
  :description "Create and manage a structured task list for your current session.  \
 Helps track progress and organize complex tasks. Use proactively for multi-step work.
 
@@ -1594,7 +1587,7 @@ Only one todo can be `in_progress` at a time."
  :category "gptel-agent")
 
 (gptel-make-tool
- :name "agent_task"
+ :name "Agent"
  :description "Launch a specialized agent to handle complex, multi-step tasks autonomously.  \
 Agents run independently and return results in one message.  \
 Use for open-ended searches, complex research, or when uncertain about finding results in first few tries."

@@ -137,8 +137,8 @@ any templates to the system prompt."
           (setf (alist-get name gptel-agent--agents nil t #'equal)
                 (cdr (gptel-agent-read-file agent-file templates)))))))
 
-  ;; Update the enum for agent_task tool
-  (setf (plist-get (car (gptel-tool-args (gptel-get-tool "agent_task"))) :enum)
+  ;; Update the enum for Agent tool
+  (setf (plist-get (car (gptel-tool-args (gptel-get-tool "Agent"))) :enum)
         (vconcat (delete "gptel-agent" (mapcar #'car gptel-agent--agents))))
 
   ;; Apply gptel-agent preset if it exists
